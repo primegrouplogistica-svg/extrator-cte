@@ -1,0 +1,14 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Quebra de linha em textos longos */
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
