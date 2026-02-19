@@ -36,6 +36,12 @@ function valorSeguro(row: unknown, key: string): string {
   }
 }
 
+/** Retorna a data de hoje no formato YYYY-MM-DD. */
+function hojeStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 /** Converte data DD/MM/YYYY ou YYYY-MM-DD para número YYYYMMDD. Retorna 0 se inválido. */
 function dataParaNum(s: string): number {
   if (!s || typeof s !== 'string') return 0
@@ -113,29 +119,47 @@ function App() {
   const [dados, setDados] = useState<CteExtraido[]>(carregarDadosSalvos)
   const [erro, setErro] = useState('')
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('cards')
-  const [dataInicial, setDataInicial] = useState('')
-  const [dataFinal, setDataFinal] = useState('')
+  const [dataInicial, setDataInicial] = useState(() => hojeStr())
+  const [dataFinal, setDataFinal] = useState(() => hojeStr())
   const [salvoFeedback, setSalvoFeedback] = useState(false)
   const inputArquivoRef = useRef<HTMLInputElement>(null)
 
+  const rotasPendentes = useCallback((lista: CteExtraido[]) => {
+    return lista
+      .map((r, i) => (!valorSeguro(r, 'rota').trim() ? i + 1 : 0))
+      .filter((n) => n > 0)
+  }, [])
+
+  // Salva automaticamente apenas quando todas as rotas estão preenchidas
   useEffect(() => {
-    salvarDados(dados)
-  }, [dados])
+    if (dados.length > 0 && rotasPendentes(dados).length === 0) {
+      salvarDados(dados)
+    }
+  }, [dados, rotasPendentes])
+
+  // Aviso ao sair se houver CT-e sem rota preenchida
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dados.length > 0 && rotasPendentes(dados).length > 0) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dados, rotasPendentes])
 
   const { dadosFiltrados, indicesVisiveis } = useMemo(() => {
     const di = dataInicial?.trim() || ''
     const df = dataFinal?.trim() || ''
     const visiveis = new Set<number>()
-    if (!di && !df) {
-      dados.forEach((_, i) => visiveis.add(i))
-      return { dadosFiltrados: dados, indicesVisiveis: visiveis }
-    }
-    const diNum = dataParaNum(di)
-    const dfNum = dataParaNum(df)
+    // Sem período selecionado = só CT-e do dia de hoje
+    const diNum = di ? dataParaNum(di) : dataParaNum(hojeStr())
+    const dfNum = df ? dataParaNum(df) : dataParaNum(hojeStr())
     const filtrados: CteExtraido[] = []
     dados.forEach((r, i) => {
       const dtNum = dataParaNum(valorSeguro(r, 'dataEmissao'))
-      const ok = dtNum === 0 || (diNum <= 0 || dtNum >= diNum) && (dfNum <= 0 || dtNum <= dfNum)
+      // dtNum 0 = data inválida, excluímos para não mostrar CT-e sem data
+      const ok = dtNum > 0 && dtNum >= diNum && dtNum <= dfNum
       if (ok) {
         visiveis.add(i)
         filtrados.push(r)
@@ -211,12 +235,6 @@ function App() {
   }
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
-
-  const rotasPendentes = useCallback((lista: CteExtraido[]) => {
-    return lista
-      .map((r, i) => (!valorSeguro(r, 'rota').trim() ? i + 1 : 0))
-      .filter((n) => n > 0)
-  }, [])
 
   const salvarRegistros = useCallback(() => {
     const pendentes = rotasPendentes(dados)
@@ -405,12 +423,12 @@ function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setDataInicial(''); setDataFinal('') }}
+                  onClick={() => { setDataInicial(hojeStr()); setDataFinal(hojeStr()) }}
                   className="px-3 py-2 text-slate-400 hover:text-slate-200 text-sm"
-                  style={{ display: (dataInicial || dataFinal) ? undefined : 'none' }}
-                  aria-hidden={!(dataInicial || dataFinal)}
+                  style={{ display: (dataInicial !== hojeStr() || dataFinal !== hojeStr()) ? undefined : 'none' }}
+                  aria-hidden={dataInicial === hojeStr() && dataFinal === hojeStr()}
                 >
-                  Limpar filtro
+                  Voltar ao dia
                 </button>
               </div>
             </div>
@@ -474,10 +492,10 @@ function App() {
           {dados.length > 0 ? (
             <>
               {dadosFiltrados.length} de {dados.length} CT-e(s) na planilha
-              <span className="text-slate-600 ml-1">• salvos automaticamente</span>
+              <span className="text-slate-600 ml-1">• {rotasPendentes(dados).length > 0 ? 'preencha as rotas para salvar' : 'salvos automaticamente'}</span>
               {' — '}
               <span className="text-slate-300 font-medium">Total frete: R$ {formatarValorFrete(totalFrete)}</span>
-              <span>{(dataInicial || dataFinal) ? ' (filtrado por data)' : ''}</span>
+              <span>{dataInicial && dataFinal ? (dataInicial === hojeStr() && dataFinal === hojeStr() ? ' (hoje)' : ' (filtrado por período)') : ''}</span>
               {' — '}
               <button
                 type="button"
