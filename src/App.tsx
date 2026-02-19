@@ -58,10 +58,10 @@ function dataParaNum(s: string): number {
   return y * 10000 + m * 100 + d
 }
 
-const CAMPOS: { key: keyof CteExtraido; label: string; mono?: boolean; editavel?: boolean }[] = [
+const CAMPOS: { key: keyof CteExtraido; label: string; mono?: boolean; editavel?: boolean; obrigatorio?: boolean }[] = [
   { key: 'numero', label: 'Número do CT-e' },
   { key: 'dataEmissao', label: 'Data da Emissão' },
-  { key: 'rota', label: 'Rota', editavel: true },
+  { key: 'rota', label: 'Rota', editavel: true, obrigatorio: true },
   { key: 'valorFrete', label: 'Valor do Frete' },
   { key: 'valorTotalCarga', label: 'Valor Total da Carga' },
   { key: 'chaveAcesso', label: 'Chave de Acesso', mono: true },
@@ -212,14 +212,32 @@ function App() {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
 
+  const rotasPendentes = useCallback((lista: CteExtraido[]) => {
+    return lista
+      .map((r, i) => (!valorSeguro(r, 'rota').trim() ? i + 1 : 0))
+      .filter((n) => n > 0)
+  }, [])
+
   const salvarRegistros = useCallback(() => {
+    const pendentes = rotasPendentes(dados)
+    if (pendentes.length > 0) {
+      setErro(`Preencha a Rota nos CT-e: ${pendentes.join(', ')}`)
+      return
+    }
+    setErro('')
     salvarDados(dados)
     setSalvoFeedback(true)
     setTimeout(() => setSalvoFeedback(false), 2000)
-  }, [dados])
+  }, [dados, rotasPendentes])
 
   const exportarExcel = async () => {
     if (!dadosFiltrados.length) return
+    const pendentes = rotasPendentes(dadosFiltrados)
+    if (pendentes.length > 0) {
+      setErro(`Preencha a Rota nos CT-e antes de exportar: ${pendentes.join(', ')}`)
+      return
+    }
+    setErro('')
     const wb = new ExcelJS.Workbook()
     const ws = wb.addWorksheet('CT-e', { views: [{ state: 'frozen', ySplit: 1 }] })
     const idxValorFrete = CAMPOS.findIndex((c) => c.key === 'valorFrete')
@@ -264,6 +282,12 @@ function App() {
 
   const exportarPDF = () => {
     if (!dadosFiltrados.length) return
+    const pendentes = rotasPendentes(dadosFiltrados)
+    if (pendentes.length > 0) {
+      setErro(`Preencha a Rota nos CT-e antes de exportar: ${pendentes.join(', ')}`)
+      return
+    }
+    setErro('')
     const janela = window.open('', '_blank')
     if (!janela) {
       setErro('Permita pop-ups para salvar como PDF')
@@ -491,18 +515,19 @@ function App() {
                       </button>
                     </div>
                     <div className="p-4 grid gap-3 sm:grid-cols-1 md:grid-cols-2">
-                      {CAMPOS.map(({ key, label, mono, editavel }) => {
+                      {CAMPOS.map(({ key, label, mono, editavel, obrigatorio }) => {
                         const valor = valorSeguro(row, key)
+                        const vazioObrigatorio = obrigatorio && !valor.trim()
                         return (
                           <div key={key} className="space-y-1">
-                            <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
+                            <p className="text-xs text-slate-500 uppercase tracking-wide">{label}{obrigatorio && ' *'}</p>
                             {editavel ? (
                               <input
                                 type="text"
                                 value={valor}
                                 onChange={(e) => atualizarCampo(i, key, e.target.value)}
-                                placeholder={`Digite ${label.toLowerCase()}...`}
-                                className={`w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none ${mono ? 'font-mono text-sm' : ''}`}
+                                placeholder={obrigatorio ? `Obrigatório - ${label.toLowerCase()}` : `Digite ${label.toLowerCase()}...`}
+                                className={`w-full px-3 py-2 bg-slate-900 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none ${mono ? 'font-mono text-sm' : ''} ${vazioObrigatorio ? 'border-2 border-amber-500' : 'border border-slate-600 focus:border-blue-500'}`}
                               />
                             ) : (
                               <p
@@ -528,7 +553,7 @@ function App() {
                       <th className="text-left p-3 sticky left-0 bg-slate-800">#</th>
                       {CAMPOS.map((c) => (
                         <th key={c.key} className="text-left p-3 whitespace-nowrap">
-                          {c.label}
+                          {c.label}{c.obrigatorio && ' *'}
                         </th>
                       ))}
                       <th className="p-3 w-20"></th>
@@ -540,8 +565,9 @@ function App() {
                       return (
                       <tr key={`cte-${i}`} style={{ display: visivel ? undefined : 'none' }} className="border-t border-slate-700 hover:bg-slate-800/50">
                         <td className="p-3 sticky left-0 bg-slate-900/95 font-medium">{i + 1}</td>
-                        {CAMPOS.map(({ key, mono, editavel }) => {
+                        {CAMPOS.map(({ key, label, mono, editavel, obrigatorio }) => {
                           const valor = valorSeguro(row, key)
+                          const vazioObrigatorio = obrigatorio && !valor.trim()
                           return (
                             <td
                               key={key}
@@ -552,8 +578,9 @@ function App() {
                                   type="text"
                                   value={valor}
                                   onChange={(e) => atualizarCampo(i, key, e.target.value)}
-                                  placeholder="..."
-                                  className={`w-full min-w-[100px] px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-slate-200 text-sm placeholder-slate-500 focus:border-blue-500 focus:outline-none ${mono ? 'font-mono' : ''}`}
+                                  placeholder={obrigatorio ? `Obrigatório` : '...'}
+                                  title={obrigatorio ? `${label} é obrigatório` : ''}
+                                  className={`w-full min-w-[100px] px-2 py-1.5 bg-slate-900 rounded text-slate-200 text-sm placeholder-slate-500 focus:outline-none ${mono ? 'font-mono' : ''} ${vazioObrigatorio ? 'border-2 border-amber-500' : 'border border-slate-600 focus:border-blue-500'}`}
                                 />
                               ) : (
                                 <span title={valor}>{valor || '—'}</span>
