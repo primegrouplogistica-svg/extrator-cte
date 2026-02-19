@@ -115,6 +115,7 @@ function App() {
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('cards')
   const [dataInicial, setDataInicial] = useState('')
   const [dataFinal, setDataFinal] = useState('')
+  const [salvoFeedback, setSalvoFeedback] = useState(false)
   const inputArquivoRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -210,6 +211,12 @@ function App() {
   }
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
+
+  const salvarRegistros = useCallback(() => {
+    salvarDados(dados)
+    setSalvoFeedback(true)
+    setTimeout(() => setSalvoFeedback(false), 2000)
+  }, [dados])
 
   const exportarExcel = async () => {
     if (!dadosFiltrados.length) return
@@ -405,14 +412,21 @@ function App() {
               >
                 Exportar Excel
               </button>
-              <button
-                onClick={exportarPDF}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium"
-              >
-                Exportar PDF
-              </button>
-              <button
-                onClick={limpar}
+                <button
+                  onClick={exportarPDF}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium"
+                >
+                  Exportar PDF
+                </button>
+                <button
+                  onClick={salvarRegistros}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-medium"
+                  title="Salvar registros antes de sair"
+                >
+                  {salvoFeedback ? '✓ Salvo!' : 'Salvar registros'}
+                </button>
+                <button
+                  onClick={limpar}
                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium"
               >
                 Limpar tudo
