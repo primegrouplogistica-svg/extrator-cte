@@ -140,7 +140,7 @@ function App() {
     const rows: (string | number)[][] = [
       CAMPOS.map((c) => c.label),
       ...dadosFiltrados.map((c) => CAMPOS.map((campo) => String(c[campo.key] ?? ''))),
-      CAMPOS.map((c, i) => (i === idxValorFrete ? formatarValorFrete(totalFrete) : i === 0 ? 'TOTAL' : '')),
+      CAMPOS.map((_, i) => (i === idxValorFrete ? formatarValorFrete(totalFrete) : i === 0 ? 'TOTAL' : '')),
     ]
 
     ws.addRows(rows)
@@ -189,7 +189,7 @@ function App() {
       .map((r) => CAMPOS.map((c) => `<td style="border:1px solid #334155;padding:4px">${String(r[c.key] ?? '').replace(/</g, '&lt;')}</td>`).join(''))
       .map((tr) => `<tr>${tr}</tr>`)
       .join('')
-    const totalCells = CAMPOS.map((c, i) =>
+    const totalCells = CAMPOS.map((_, i) =>
       i === idxValorFrete
         ? `<td style="border:1px solid #334155;padding:4px;background:#1e293b;font-weight:bold">${formatarValorFrete(totalFrete)}</td>`
         : i === 0
