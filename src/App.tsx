@@ -121,19 +121,26 @@ function App() {
     salvarDados(dados)
   }, [dados])
 
-  const dadosFiltrados = useMemo(() => {
+  const { dadosFiltrados, indicesVisiveis } = useMemo(() => {
     const di = dataInicial?.trim() || ''
     const df = dataFinal?.trim() || ''
-    if (!di && !df) return dados
+    const visiveis = new Set<number>()
+    if (!di && !df) {
+      dados.forEach((_, i) => visiveis.add(i))
+      return { dadosFiltrados: dados, indicesVisiveis: visiveis }
+    }
     const diNum = dataParaNum(di)
     const dfNum = dataParaNum(df)
-    return dados.filter((r) => {
+    const filtrados: CteExtraido[] = []
+    dados.forEach((r, i) => {
       const dtNum = dataParaNum(valorSeguro(r, 'dataEmissao'))
-      if (dtNum === 0) return true
-      if (diNum > 0 && dtNum < diNum) return false
-      if (dfNum > 0 && dtNum > dfNum) return false
-      return true
+      const ok = dtNum === 0 || (diNum <= 0 || dtNum >= diNum) && (dfNum <= 0 || dtNum <= dfNum)
+      if (ok) {
+        visiveis.add(i)
+        filtrados.push(r)
+      }
     })
+    return { dadosFiltrados: filtrados, indicesVisiveis: visiveis }
   }, [dados, dataInicial, dataFinal])
 
   const totalFrete = useMemo(() => {
@@ -447,14 +454,14 @@ function App() {
             </p>
 
             {visualizacao === 'cards' ? (
-              <div key={`cards-${dataInicial}-${dataFinal}`} className="space-y-4">
-                {dadosFiltrados.map((row, i) => {
-                  const idxOrig = dados.indexOf(row)
-                  const rowKey = `cte-${idxOrig}`
+              <div className="space-y-4">
+                {dados.map((row, i) => {
+                  const visivel = indicesVisiveis.has(i)
                   const numCte = valorSeguro(row, 'numero')
                   return (
                   <div
-                    key={rowKey}
+                    key={`cte-${i}`}
+                    style={{ display: visivel ? undefined : 'none' }}
                     className="bg-slate-800/80 rounded-xl border border-slate-700 overflow-hidden"
                   >
                     <div className="bg-slate-700/80 px-4 py-3 flex items-center justify-between">
@@ -462,7 +469,7 @@ function App() {
                         CT-e #{i + 1} {numCte ? `• Nº ${numCte}` : ''}
                       </span>
                       <button
-                        onClick={() => removerLinha(idxOrig)}
+                        onClick={() => removerLinha(i)}
                         className="text-red-400 hover:text-red-300 p-1.5 rounded hover:bg-red-900/30"
                         title="Remover"
                       >
@@ -479,7 +486,7 @@ function App() {
                               <input
                                 type="text"
                                 value={valor}
-                                onChange={(e) => atualizarCampo(idxOrig, key, e.target.value)}
+                                onChange={(e) => atualizarCampo(i, key, e.target.value)}
                                 placeholder={`Digite ${label.toLowerCase()}...`}
                                 className={`w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none ${mono ? 'font-mono text-sm' : ''}`}
                               />
@@ -500,7 +507,7 @@ function App() {
                 })}
               </div>
             ) : (
-              <div key={`tabela-${dataInicial}-${dataFinal}`} className="overflow-x-auto rounded-lg border border-slate-700">
+              <div className="overflow-x-auto rounded-lg border border-slate-700">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-800">
@@ -514,11 +521,10 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dadosFiltrados.map((row, i) => {
-                      const idxOrig = dados.indexOf(row)
-                      const rowKey = `cte-${idxOrig}`
+                    {dados.map((row, i) => {
+                      const visivel = indicesVisiveis.has(i)
                       return (
-                      <tr key={rowKey} className="border-t border-slate-700 hover:bg-slate-800/50">
+                      <tr key={`cte-${i}`} style={{ display: visivel ? undefined : 'none' }} className="border-t border-slate-700 hover:bg-slate-800/50">
                         <td className="p-3 sticky left-0 bg-slate-900/95 font-medium">{i + 1}</td>
                         {CAMPOS.map(({ key, mono, editavel }) => {
                           const valor = valorSeguro(row, key)
@@ -531,7 +537,7 @@ function App() {
                                 <input
                                   type="text"
                                   value={valor}
-                                  onChange={(e) => atualizarCampo(idxOrig, key, e.target.value)}
+                                  onChange={(e) => atualizarCampo(i, key, e.target.value)}
                                   placeholder="..."
                                   className={`w-full min-w-[100px] px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-slate-200 text-sm placeholder-slate-500 focus:border-blue-500 focus:outline-none ${mono ? 'font-mono' : ''}`}
                                 />
@@ -543,7 +549,7 @@ function App() {
                         })}
                         <td className="p-2 align-top">
                           <button
-                            onClick={() => removerLinha(idxOrig)}
+                            onClick={() => removerLinha(i)}
                             className="text-red-400 hover:text-red-300 p-1.5"
                             title="Remover"
                           >
