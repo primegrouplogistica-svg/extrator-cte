@@ -1,27 +1,61 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { parseCteXml, type CteExtraido } from './utils/parseCte'
 import { extrairTextoDoPdf, parseCtePdf } from './utils/parseCtePdf'
 import ExcelJS from 'exceljs'
 import './App.css'
 
-function parseDataEmissao(str: string): Date | null {
-  if (!str) return null
-  const m = str.match(/(\d{2})\/(\d{2})\/(\d{4})/)
-  if (!m) return null
-  const [, d, mo, y] = m
-  const dt = new Date(parseInt(y, 10), parseInt(mo, 10) - 1, parseInt(d, 10))
-  return isNaN(dt.getTime()) ? null : dt
-}
-
-function parseValorFrete(str: string): number {
-  if (!str) return 0
-  const limpo = str.replace(/\./g, '').replace(',', '.')
-  const n = parseFloat(limpo)
-  return isNaN(n) ? 0 : n
+function parseValorFrete(val: unknown): number {
+  try {
+    if (val == null) return 0
+    const str = typeof val === 'string' ? val : String(val)
+    if (!str.trim()) return 0
+    const limpo = str.replace(/\./g, '').replace(',', '.')
+    const n = parseFloat(limpo)
+    return isNaN(n) ? 0 : n
+  } catch {
+    return 0
+  }
 }
 
 function formatarValorFrete(n: number): string {
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  try {
+    const num = Number(n)
+    return isNaN(num) ? '0,00' : num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  } catch {
+    return '0,00'
+  }
+}
+
+function valorSeguro(row: unknown, key: string): string {
+  try {
+    if (row == null || typeof row !== 'object') return ''
+    const v = (row as Record<string, unknown>)[key]
+    return v != null ? String(v) : ''
+  } catch {
+    return ''
+  }
+}
+
+/** Converte data DD/MM/YYYY ou YYYY-MM-DD para número YYYYMMDD. Retorna 0 se inválido. */
+function dataParaNum(s: string): number {
+  if (!s || typeof s !== 'string') return 0
+  const t = s.trim()
+  let d: number, m: number, y: number
+  const barra = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  const traco = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  if (barra) {
+    d = parseInt(barra[1], 10)
+    m = parseInt(barra[2], 10)
+    y = parseInt(barra[3], 10)
+  } else if (traco) {
+    y = parseInt(traco[1], 10)
+    m = parseInt(traco[2], 10)
+    d = parseInt(traco[3], 10)
+  } else {
+    return 0
+  }
+  if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) return 0
+  return y * 10000 + m * 100 + d
 }
 
 const CAMPOS: { key: keyof CteExtraido; label: string; mono?: boolean; editavel?: boolean }[] = [
@@ -37,35 +71,74 @@ const CAMPOS: { key: keyof CteExtraido; label: string; mono?: boolean; editavel?
   { key: 'placa', label: 'Placa' },
 ]
 
+const STORAGE_KEY = 'extrator-cte-dados'
+
+function normalizarRow(raw: unknown): CteExtraido {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const str = (v: unknown) => (v != null ? String(v) : '')
+  return {
+    numero: str(r.numero),
+    dataEmissao: str(r.dataEmissao),
+    rota: str(r.rota),
+    valorFrete: str(r.valorFrete),
+    valorTotalCarga: str(r.valorTotalCarga),
+    chaveAcesso: str(r.chaveAcesso),
+    numerosNotas: str(r.numerosNotas),
+    pagadorFrete: str(r.pagadorFrete) || 'L L E FERRAGENS LTDA KING OURO',
+    cnpjPagador: str(r.cnpjPagador) || '05.953.543/0002-28',
+    placa: str(r.placa),
+  }
+}
+
+function carregarDadosSalvos(): CteExtraido[] {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY)
+    if (!s) return []
+    const parsed = JSON.parse(s)
+    return Array.isArray(parsed) ? parsed.map(normalizarRow) : []
+  } catch {
+    return []
+  }
+}
+
+function salvarDados(d: CteExtraido[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d))
+  } catch {
+    // ignore
+  }
+}
+
 function App() {
-  const [dados, setDados] = useState<CteExtraido[]>([])
+  const [dados, setDados] = useState<CteExtraido[]>(carregarDadosSalvos)
   const [erro, setErro] = useState('')
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('cards')
   const [dataInicial, setDataInicial] = useState('')
   const [dataFinal, setDataFinal] = useState('')
   const inputArquivoRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => {
+    salvarDados(dados)
+  }, [dados])
+
   const dadosFiltrados = useMemo(() => {
-    try {
-      if (!dataInicial && !dataFinal) return dados
-      const di = dataInicial && dataInicial.length >= 10 ? new Date(dataInicial + 'T00:00:00') : null
-      const df = dataFinal && dataFinal.length >= 10 ? new Date(dataFinal + 'T23:59:59') : null
-      if ((di && isNaN(di.getTime())) || (df && isNaN(df.getTime()))) return dados
-      return dados.filter((row) => {
-        const dt = parseDataEmissao(row.dataEmissao)
-        if (!dt || isNaN(dt.getTime())) return true
-        if (di && dt < di) return false
-        if (df && dt > df) return false
-        return true
-      })
-    } catch {
-      return dados
-    }
+    const di = dataInicial?.trim() || ''
+    const df = dataFinal?.trim() || ''
+    if (!di && !df) return dados
+    const diNum = dataParaNum(di)
+    const dfNum = dataParaNum(df)
+    return dados.filter((r) => {
+      const dtNum = dataParaNum(valorSeguro(r, 'dataEmissao'))
+      if (dtNum === 0) return true
+      if (diNum > 0 && dtNum < diNum) return false
+      if (dfNum > 0 && dtNum > dfNum) return false
+      return true
+    })
   }, [dados, dataInicial, dataFinal])
 
   const totalFrete = useMemo(() => {
     try {
-      return dadosFiltrados.reduce((acc, row) => acc + parseValorFrete(row.valorFrete), 0)
+      return dadosFiltrados.reduce((acc, row) => acc + parseValorFrete(valorSeguro(row, 'valorFrete')), 0)
     } catch {
       return 0
     }
@@ -139,7 +212,7 @@ function App() {
 
     const rows: (string | number)[][] = [
       CAMPOS.map((c) => c.label),
-      ...dadosFiltrados.map((c) => CAMPOS.map((campo) => String(c[campo.key] ?? ''))),
+      ...dadosFiltrados.map((c) => CAMPOS.map((campo) => valorSeguro(c, campo.key))),
       CAMPOS.map((_, i) => (i === idxValorFrete ? formatarValorFrete(totalFrete) : i === 0 ? 'TOTAL' : '')),
     ]
 
@@ -186,7 +259,7 @@ function App() {
     const idxValorFrete = CAMPOS.findIndex((c) => c.key === 'valorFrete')
     const ths = CAMPOS.map((c) => c.label).map((l) => `<th style="border:1px solid #334155;padding:6px;background:#1e3a5f;color:white;text-align:left">${l}</th>`).join('')
     const rows = dadosFiltrados
-      .map((r) => CAMPOS.map((c) => `<td style="border:1px solid #334155;padding:4px">${String(r[c.key] ?? '').replace(/</g, '&lt;')}</td>`).join(''))
+      .map((r) => CAMPOS.map((c) => `<td style="border:1px solid #334155;padding:4px">${valorSeguro(r, c.key).replace(/</g, '&lt;')}</td>`).join(''))
       .map((tr) => `<tr>${tr}</tr>`)
       .join('')
     const totalCells = CAMPOS.map((_, i) =>
@@ -219,9 +292,15 @@ function App() {
   const limpar = () => {
     setDados([])
     setErro('')
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      // ignore
+    }
   }
 
   const removerLinha = (i: number) => {
+    if (i < 0 || !Number.isFinite(i)) return
     setDados((prev) => prev.filter((_, idx) => idx !== i))
   }
 
@@ -296,6 +375,7 @@ function App() {
                 </div>
                 {(dataInicial || dataFinal) && (
                   <button
+                    type="button"
                     onClick={() => { setDataInicial(''); setDataFinal('') }}
                     className="px-3 py-2 text-slate-400 hover:text-slate-200 text-sm"
                   >
@@ -305,33 +385,31 @@ function App() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 items-center justify-between">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => inputArquivoRef.current?.click()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium"
-                  title="Adicionar mais CT-e à planilha"
-                >
-                  + Adicionar CT-e
-                </button>
-                <button
-                  onClick={exportarExcel}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium"
-                >
-                  Exportar Excel
-                </button>
-                <button
-                  onClick={exportarPDF}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium"
-                >
-                  Exportar PDF
-                </button>
-                <button
-                  onClick={limpar}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium"
-                >
-                  Limpar tudo
-                </button>
-              </div>
+              <button
+                onClick={() => inputArquivoRef.current?.click()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium"
+                title="Adicionar mais CT-e à planilha"
+              >
+                + Adicionar CT-e
+              </button>
+              <button
+                onClick={exportarExcel}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium"
+              >
+                Exportar Excel
+              </button>
+              <button
+                onClick={exportarPDF}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium"
+              >
+                Exportar PDF
+              </button>
+              <button
+                onClick={limpar}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium"
+              >
+                Limpar tudo
+              </button>
               <div className="flex gap-2 bg-slate-800 rounded-lg p-1">
                 <button
                   onClick={() => setVisualizacao('cards')}
@@ -354,6 +432,7 @@ function App() {
 
             <p className="text-slate-500 text-sm">
               {dadosFiltrados.length} de {dados.length} CT-e(s) na planilha
+              <span className="text-slate-600 ml-1">• salvos automaticamente</span>
               {' — '}
               <span className="text-slate-300 font-medium">Total frete: R$ {formatarValorFrete(totalFrete)}</span>
               {(dataInicial || dataFinal) && ' (filtrado por data)'}
@@ -368,17 +447,19 @@ function App() {
             </p>
 
             {visualizacao === 'cards' ? (
-              <div className="space-y-4">
+              <div key={`cards-${dataInicial}-${dataFinal}`} className="space-y-4">
                 {dadosFiltrados.map((row, i) => {
                   const idxOrig = dados.indexOf(row)
+                  const rowKey = `cte-${idxOrig}`
+                  const numCte = valorSeguro(row, 'numero')
                   return (
                   <div
-                    key={i}
+                    key={rowKey}
                     className="bg-slate-800/80 rounded-xl border border-slate-700 overflow-hidden"
                   >
                     <div className="bg-slate-700/80 px-4 py-3 flex items-center justify-between">
                       <span className="font-semibold text-blue-300">
-                        CT-e #{i + 1} {row.numero && `• Nº ${row.numero}`}
+                        CT-e #{i + 1} {numCte ? `• Nº ${numCte}` : ''}
                       </span>
                       <button
                         onClick={() => removerLinha(idxOrig)}
@@ -390,7 +471,7 @@ function App() {
                     </div>
                     <div className="p-4 grid gap-3 sm:grid-cols-1 md:grid-cols-2">
                       {CAMPOS.map(({ key, label, mono, editavel }) => {
-                        const valor = (row[key] as string) ?? ''
+                        const valor = valorSeguro(row, key)
                         return (
                           <div key={key} className="space-y-1">
                             <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
@@ -419,7 +500,7 @@ function App() {
                 })}
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-700">
+              <div key={`tabela-${dataInicial}-${dataFinal}`} className="overflow-x-auto rounded-lg border border-slate-700">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-800">
@@ -435,11 +516,12 @@ function App() {
                   <tbody>
                     {dadosFiltrados.map((row, i) => {
                       const idxOrig = dados.indexOf(row)
+                      const rowKey = `cte-${idxOrig}`
                       return (
-                      <tr key={i} className="border-t border-slate-700 hover:bg-slate-800/50">
+                      <tr key={rowKey} className="border-t border-slate-700 hover:bg-slate-800/50">
                         <td className="p-3 sticky left-0 bg-slate-900/95 font-medium">{i + 1}</td>
                         {CAMPOS.map(({ key, mono, editavel }) => {
-                          const valor = (row[key] as string) ?? ''
+                          const valor = valorSeguro(row, key)
                           return (
                             <td
                               key={key}
@@ -454,7 +536,7 @@ function App() {
                                   className={`w-full min-w-[100px] px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-slate-200 text-sm placeholder-slate-500 focus:border-blue-500 focus:outline-none ${mono ? 'font-mono' : ''}`}
                                 />
                               ) : (
-                                <span title={valor}>{(row[key] as string) || '—'}</span>
+                                <span title={valor}>{valor || '—'}</span>
                               )}
                             </td>
                           )
