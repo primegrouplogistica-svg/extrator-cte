@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect, startTransition } from 'react'
 import { parseCteXml, type CteExtraido } from './utils/parseCte'
 import { extrairTextoDoPdf, parseCtePdf } from './utils/parseCtePdf'
 import ExcelJS from 'exceljs'
@@ -367,7 +367,7 @@ function App() {
                   <input
                     type="text"
                     value={dataInicial}
-                    onChange={(e) => setDataInicial(e.target.value)}
+                    onChange={(e) => { const v = e.target.value; startTransition(() => setDataInicial(v)) }}
                     placeholder="DD/MM/AAAA ou AAAA-MM-DD"
                     className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none w-44"
                   />
@@ -377,7 +377,7 @@ function App() {
                   <input
                     type="text"
                     value={dataFinal}
-                    onChange={(e) => setDataFinal(e.target.value)}
+                    onChange={(e) => { const v = e.target.value; startTransition(() => setDataFinal(v)) }}
                     placeholder="DD/MM/AAAA ou AAAA-MM-DD"
                     className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none w-44"
                   />
@@ -444,7 +444,7 @@ function App() {
               <span className="text-slate-600 ml-1">• salvos automaticamente</span>
               {' — '}
               <span className="text-slate-300 font-medium">Total frete: R$ {formatarValorFrete(totalFrete)}</span>
-              {(dataInicial || dataFinal) && <span> (filtrado por data)</span>}
+              <span>{(dataInicial || dataFinal) ? ' (filtrado por data)' : ''}</span>
               {' — '}
               <button
                 type="button"
@@ -456,7 +456,7 @@ function App() {
             </div>
 
             {visualizacao === 'cards' ? (
-              <div className="space-y-4">
+              <div key={`list-cards-${dataInicial}-${dataFinal}`} className="space-y-4">
                 {dados.map((row, i) => {
                   const visivel = indicesVisiveis.has(i)
                   const numCte = valorSeguro(row, 'numero')
@@ -509,7 +509,7 @@ function App() {
                 })}
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-700">
+              <div key={`list-tabela-${dataInicial}-${dataFinal}`} className="overflow-x-auto rounded-lg border border-slate-700">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-800">
