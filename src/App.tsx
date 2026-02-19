@@ -348,20 +348,20 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6">
-      <header className="max-w-5xl mx-auto mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-blue-400">
-          Extrator CT-e
-        </h1>
-        <p className="text-slate-400 mt-1">
-          Extraia dados dos CT-e (PDF ou XML) e exporte para planilha
-        </p>
-      </header>
+      <div className="sticky top-0 z-10 bg-slate-950 pb-4 -mx-4 px-4 md:-mx-6 md:px-6 pt-4 md:pt-6">
+        <header className="max-w-5xl mx-auto mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-blue-400">
+            Extrator CT-e
+          </h1>
+          <p className="text-slate-400 mt-1">
+            Extraia dados dos CT-e (PDF ou XML) e exporte para planilha
+          </p>
+        </header>
 
-      <main className="max-w-5xl mx-auto space-y-4">
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
-          className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center hover:border-blue-500 transition-colors bg-slate-900/50"
+          className="max-w-5xl mx-auto border-2 border-dashed border-slate-600 rounded-xl p-8 text-center hover:border-blue-500 transition-colors bg-slate-900/50"
         >
           <input
             ref={inputArquivoRef}
@@ -382,7 +382,9 @@ function App() {
             </p>
           </label>
         </div>
+      </div>
 
+      <main className="max-w-5xl mx-auto space-y-4">
         {erro && (
           <div className="bg-amber-900/50 border border-amber-600 rounded-lg p-3 text-amber-200 text-sm whitespace-pre-wrap">
             {erro}
