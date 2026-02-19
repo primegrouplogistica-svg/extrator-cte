@@ -359,36 +359,38 @@ function App() {
         )}
 
         {dados.length > 0 && (
-          <>
+          <div>
             <div className="flex flex-wrap gap-4 items-end p-4 bg-slate-800/60 rounded-xl border border-slate-700">
               <div className="flex flex-wrap gap-3 items-end">
                 <div className="space-y-1">
                   <label className="block text-xs text-slate-500 uppercase tracking-wide">Data inicial</label>
                   <input
-                    type="date"
+                    type="text"
                     value={dataInicial}
                     onChange={(e) => setDataInicial(e.target.value)}
-                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 focus:border-blue-500 focus:outline-none"
+                    placeholder="DD/MM/AAAA ou AAAA-MM-DD"
+                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none w-44"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="block text-xs text-slate-500 uppercase tracking-wide">Data final</label>
                   <input
-                    type="date"
+                    type="text"
                     value={dataFinal}
                     onChange={(e) => setDataFinal(e.target.value)}
-                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 focus:border-blue-500 focus:outline-none"
+                    placeholder="DD/MM/AAAA ou AAAA-MM-DD"
+                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none w-44"
                   />
                 </div>
-                {(dataInicial || dataFinal) && (
-                  <button
-                    type="button"
-                    onClick={() => { setDataInicial(''); setDataFinal('') }}
-                    className="px-3 py-2 text-slate-400 hover:text-slate-200 text-sm"
-                  >
-                    Limpar filtro
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => { setDataInicial(''); setDataFinal('') }}
+                  className="px-3 py-2 text-slate-400 hover:text-slate-200 text-sm"
+                  style={{ display: (dataInicial || dataFinal) ? undefined : 'none' }}
+                  aria-hidden={!(dataInicial || dataFinal)}
+                >
+                  Limpar filtro
+                </button>
               </div>
             </div>
             <div className="flex flex-wrap gap-2 items-center justify-between">
@@ -437,12 +439,12 @@ function App() {
               </div>
             </div>
 
-            <p className="text-slate-500 text-sm">
+            <div className="text-slate-500 text-sm">
               {dadosFiltrados.length} de {dados.length} CT-e(s) na planilha
               <span className="text-slate-600 ml-1">• salvos automaticamente</span>
               {' — '}
               <span className="text-slate-300 font-medium">Total frete: R$ {formatarValorFrete(totalFrete)}</span>
-              {(dataInicial || dataFinal) && ' (filtrado por data)'}
+              {(dataInicial || dataFinal) && <span> (filtrado por data)</span>}
               {' — '}
               <button
                 type="button"
@@ -451,7 +453,7 @@ function App() {
               >
                 adicionar mais
               </button>
-            </p>
+            </div>
 
             {visualizacao === 'cards' ? (
               <div className="space-y-4">
@@ -573,7 +575,7 @@ function App() {
                 </table>
               </div>
             )}
-          </>
+          </div>
         )}
       </main>
     </div>
