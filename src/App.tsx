@@ -365,21 +365,19 @@ function App() {
                 <div className="space-y-1">
                   <label className="block text-xs text-slate-500 uppercase tracking-wide">Data inicial</label>
                   <input
-                    type="text"
+                    type="date"
                     value={dataInicial}
                     onChange={(e) => { const v = e.target.value; startTransition(() => setDataInicial(v)) }}
-                    placeholder="DD/MM/AAAA ou AAAA-MM-DD"
-                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none w-44"
+                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="block text-xs text-slate-500 uppercase tracking-wide">Data final</label>
                   <input
-                    type="text"
+                    type="date"
                     value={dataFinal}
                     onChange={(e) => { const v = e.target.value; startTransition(() => setDataFinal(v)) }}
-                    placeholder="DD/MM/AAAA ou AAAA-MM-DD"
-                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none w-44"
+                    className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
                 <button
