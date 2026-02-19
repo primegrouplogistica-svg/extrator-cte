@@ -122,6 +122,7 @@ function App() {
   const [dataInicial, setDataInicial] = useState(() => hojeStr())
   const [dataFinal, setDataFinal] = useState(() => hojeStr())
   const [salvoFeedback, setSalvoFeedback] = useState(false)
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const inputArquivoRef = useRef<HTMLInputElement>(null)
 
   const rotasPendentes = useCallback((lista: CteExtraido[]) => {
@@ -345,23 +346,36 @@ function App() {
     setTimeout(() => janela.print(), 300)
   }
 
-  const limpar = () => {
-    setDados([])
-    setErro('')
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // ignore
-    }
-  }
-
-  const removerLinha = (i: number) => {
-    if (i < 0 || !Number.isFinite(i)) return
-    setDados((prev) => prev.filter((_, idx) => idx !== i))
-  }
-
   const atualizarCampo = (i: number, campo: keyof CteExtraido, valor: string) => {
     setDados((prev) => prev.map((r, idx) => (idx === i ? { ...r, [campo]: valor } : r)))
+  }
+
+  const toggleSelecao = (i: number) => {
+    setSelecionados((prev) => {
+      const next = new Set(prev)
+      if (next.has(i)) next.delete(i)
+      else next.add(i)
+      return next
+    })
+  }
+
+  const visiveisArr = useMemo(() => [...indicesVisiveis].sort((a, b) => a - b), [indicesVisiveis])
+  const todosVisiveisSelecionados = visiveisArr.length > 0 && visiveisArr.every((i) => selecionados.has(i))
+
+  const toggleTodosVisiveis = () => {
+    if (todosVisiveisSelecionados) {
+      setSelecionados((prev) => {
+        const next = new Set(prev)
+        visiveisArr.forEach((i) => next.delete(i))
+        return next
+      })
+    } else {
+      setSelecionados((prev) => {
+        const next = new Set(prev)
+        visiveisArr.forEach((i) => next.add(i))
+        return next
+      })
+    }
   }
 
   return (
@@ -462,11 +476,16 @@ function App() {
             {salvoFeedback ? '✓ Salvo!' : 'Salvar registros'}
           </button>
           <button
-            onClick={limpar}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={dados.length === 0}
+            onClick={() => {
+              setDados((prev) => prev.filter((_, i) => !selecionados.has(i)))
+              setSelecionados(new Set())
+              setErro('')
+            }}
+            className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={dados.length === 0 || selecionados.size === 0}
+            title="Excluir CT-e selecionados"
           >
-            Limpar tudo
+            Excluir ({selecionados.size})
           </button>
           <div className="flex gap-2 bg-slate-800 rounded-lg p-1">
             <button
@@ -524,6 +543,20 @@ function App() {
 
         {dados.length > 0 && (
           <>
+            <div className="flex items-center gap-3 py-2">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-200 text-sm">
+                <input
+                  type="checkbox"
+                  checked={todosVisiveisSelecionados}
+                  onChange={toggleTodosVisiveis}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500"
+                />
+                Selecionar todos os visíveis
+              </label>
+              {selecionados.size > 0 && (
+                <span className="text-slate-500 text-sm">{selecionados.size} selecionado(s)</span>
+              )}
+            </div>
             {visualizacao === 'cards' ? (
               <div key={`list-cards-${dataInicial}-${dataFinal}`} className="space-y-4">
                 {dados.map((row, i) => {
@@ -536,16 +569,17 @@ function App() {
                     className="bg-slate-800/80 rounded-xl border border-slate-700 overflow-hidden"
                   >
                     <div className="bg-slate-700/80 px-4 py-3 flex items-center justify-between">
-                      <span className="font-semibold text-blue-300">
-                        CT-e #{i + 1} {numCte ? `• Nº ${numCte}` : ''}
-                      </span>
-                      <button
-                        onClick={() => removerLinha(i)}
-                        className="text-red-400 hover:text-red-300 p-1.5 rounded hover:bg-red-900/30"
-                        title="Remover"
-                      >
-                        ✕ Remover
-                      </button>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selecionados.has(i)}
+                          onChange={() => toggleSelecao(i)}
+                          className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500"
+                        />
+                        <span className="font-semibold text-blue-300">
+                          CT-e #{i + 1} {numCte ? `• Nº ${numCte}` : ''}
+                        </span>
+                      </label>
                     </div>
                     <div className="p-4 grid gap-3 sm:grid-cols-1 md:grid-cols-2">
                       {CAMPOS.map(({ key, label, mono, editavel, obrigatorio }) => {
@@ -583,13 +617,21 @@ function App() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-800">
-                      <th className="text-left p-3 sticky left-0 bg-slate-800">#</th>
+                      <th className="text-left p-3 sticky left-0 bg-slate-800 w-12">
+                        <input
+                          type="checkbox"
+                          checked={todosVisiveisSelecionados}
+                          onChange={toggleTodosVisiveis}
+                          className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500"
+                          title="Selecionar todos os visíveis"
+                        />
+                      </th>
+                      <th className="text-left p-3 sticky left-12 bg-slate-800">#</th>
                       {CAMPOS.map((c) => (
                         <th key={c.key} className="text-left p-3 whitespace-nowrap">
                           {c.label}{c.obrigatorio && ' *'}
                         </th>
                       ))}
-                      <th className="p-3 w-20"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -597,7 +639,16 @@ function App() {
                       const visivel = indicesVisiveis.has(i)
                       return (
                       <tr key={`cte-${i}`} style={{ display: visivel ? undefined : 'none' }} className="border-t border-slate-700 hover:bg-slate-800/50">
-                        <td className="p-3 sticky left-0 bg-slate-900/95 font-medium">{i + 1}</td>
+                        <td className="p-3 sticky left-0 bg-slate-900/95 w-12">
+                          <input
+                            type="checkbox"
+                            checked={selecionados.has(i)}
+                            onChange={() => toggleSelecao(i)}
+                            className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500"
+                            title="Selecionar para excluir"
+                          />
+                        </td>
+                        <td className="p-3 sticky left-12 bg-slate-900/95 font-medium">{i + 1}</td>
                         {CAMPOS.map(({ key, label, mono, editavel, obrigatorio }) => {
                           const valor = valorSeguro(row, key)
                           const vazioObrigatorio = obrigatorio && !valor.trim()
@@ -621,27 +672,18 @@ function App() {
                             </td>
                           )
                         })}
-                        <td className="p-2 align-top">
-                          <button
-                            onClick={() => removerLinha(i)}
-                            className="text-red-400 hover:text-red-300 p-1.5"
-                            title="Remover"
-                          >
-                            ✕
-                          </button>
-                        </td>
                       </tr>
                     )})}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-slate-600 bg-slate-800/80 font-semibold">
-                      <td className="p-3 sticky left-0 bg-slate-800/80">TOTAL</td>
+                      <td className="p-3 sticky left-0 bg-slate-800/80 w-12"></td>
+                      <td className="p-3 sticky left-12 bg-slate-800/80">TOTAL</td>
                       {CAMPOS.map(({ key }) => (
                         <td key={key} className="p-3">
                           {key === 'valorFrete' ? formatarValorFrete(totalFrete) : ''}
                         </td>
                       ))}
-                      <td className="p-2"></td>
                     </tr>
                   </tfoot>
                 </table>
