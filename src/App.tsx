@@ -382,18 +382,8 @@ function App() {
             </p>
           </label>
         </div>
-      </div>
 
-      <main className="max-w-5xl mx-auto space-y-4">
-        {erro && (
-          <div className="bg-amber-900/50 border border-amber-600 rounded-lg p-3 text-amber-200 text-sm whitespace-pre-wrap">
-            {erro}
-          </div>
-        )}
-
-        {dados.length > 0 && (
-          <div>
-            <div className="flex flex-wrap gap-4 items-end p-4 bg-slate-800/60 rounded-xl border border-slate-700">
+        <div className="max-w-5xl mx-auto flex flex-wrap gap-4 items-end p-4 bg-slate-800/60 rounded-xl border border-slate-700 mt-4">
               <div className="flex flex-wrap gap-3 items-end">
                 <div className="space-y-1">
                   <label className="block text-xs text-slate-500 uppercase tracking-wide">Data inicial</label>
@@ -424,60 +414,65 @@ function App() {
                 </button>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 items-center justify-between">
-              <button
-                onClick={() => inputArquivoRef.current?.click()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium"
-                title="Adicionar mais CT-e à planilha"
-              >
-                + Adicionar CT-e
-              </button>
-              <button
-                onClick={exportarExcel}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium"
-              >
-                Exportar Excel
-              </button>
-                <button
-                  onClick={exportarPDF}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium"
-                >
-                  Exportar PDF
-                </button>
-                <button
-                  onClick={salvarRegistros}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-medium"
-                  title="Salvar registros antes de sair"
-                >
-                  {salvoFeedback ? '✓ Salvo!' : 'Salvar registros'}
-                </button>
-                <button
-                  onClick={limpar}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium"
-              >
-                Limpar tudo
-              </button>
-              <div className="flex gap-2 bg-slate-800 rounded-lg p-1">
-                <button
-                  onClick={() => setVisualizacao('cards')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                    visualizacao === 'cards' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Cards
-                </button>
-                <button
-                  onClick={() => setVisualizacao('tabela')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                    visualizacao === 'tabela' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Tabela
-                </button>
-              </div>
-            </div>
+        <div className="max-w-5xl mx-auto flex flex-wrap gap-2 items-center justify-between mt-2">
+          <button
+            onClick={() => inputArquivoRef.current?.click()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium"
+            title="Adicionar CT-e à planilha"
+          >
+            + Adicionar CT-e
+          </button>
+          <button
+            onClick={exportarExcel}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={dados.length === 0}
+          >
+            Exportar Excel
+          </button>
+          <button
+            onClick={exportarPDF}
+            className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={dados.length === 0}
+          >
+            Exportar PDF
+          </button>
+          <button
+            onClick={salvarRegistros}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-medium"
+            title="Salvar registros antes de sair"
+          >
+            {salvoFeedback ? '✓ Salvo!' : 'Salvar registros'}
+          </button>
+          <button
+            onClick={limpar}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={dados.length === 0}
+          >
+            Limpar tudo
+          </button>
+          <div className="flex gap-2 bg-slate-800 rounded-lg p-1">
+            <button
+              onClick={() => setVisualizacao('cards')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                visualizacao === 'cards' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Cards
+            </button>
+            <button
+              onClick={() => setVisualizacao('tabela')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                visualizacao === 'tabela' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Tabela
+            </button>
+          </div>
+        </div>
 
-            <div className="text-slate-500 text-sm">
+        <div className="max-w-5xl mx-auto text-slate-500 text-sm mt-2">
+          {dados.length > 0 ? (
+            <>
               {dadosFiltrados.length} de {dados.length} CT-e(s) na planilha
               <span className="text-slate-600 ml-1">• salvos automaticamente</span>
               {' — '}
@@ -491,8 +486,26 @@ function App() {
               >
                 adicionar mais
               </button>
-            </div>
+            </>
+          ) : (
+            <>
+              0 CT-e na planilha
+              {' — '}
+              <span className="text-slate-400">importe PDF ou XML para começar</span>
+            </>
+          )}
+        </div>
+      </div>
 
+      <main className="max-w-5xl mx-auto space-y-4">
+        {erro && (
+          <div className="bg-amber-900/50 border border-amber-600 rounded-lg p-3 text-amber-200 text-sm whitespace-pre-wrap">
+            {erro}
+          </div>
+        )}
+
+        {dados.length > 0 && (
+          <>
             {visualizacao === 'cards' ? (
               <div key={`list-cards-${dataInicial}-${dataFinal}`} className="space-y-4">
                 {dados.map((row, i) => {
@@ -616,7 +629,7 @@ function App() {
                 </table>
               </div>
             )}
-          </div>
+          </>
         )}
       </main>
     </div>
