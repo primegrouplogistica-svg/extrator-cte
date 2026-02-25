@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run copy-pdf-worker && tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "copy-pdf-worker": "node scripts/copy-pdf-worker.cjs",
+    "predev": "npm run copy-pdf-worker"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

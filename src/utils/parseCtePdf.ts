@@ -6,8 +6,8 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import type { CteExtraido } from './parseCte'
 
-// Worker do PDF.js (CDN para funcionar em dev e produção)
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
+// Worker do PDF.js: arquivo local no public/ (evita falhas de CDN/CORS em produção/Vercel)
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
 
 export async function extrairTextoDoPdf(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer()

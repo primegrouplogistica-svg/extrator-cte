@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Worker do PDF.js (gerado pelo script copy-pdf-worker)
+public/pdf.worker.min.js
